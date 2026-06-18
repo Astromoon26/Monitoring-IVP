@@ -21,9 +21,9 @@ jobs:
       - name: Fetch sheets as CSV
         env:
           SHEET_ID: "1_cC0Pg3qqrzSjkCRPbiCACdy384wraBfJwf_PAEknuo"
-          GID_PROCESSING: "PASTE_GID_DATA_PROSES_IVP"
-          GID_PROBLEM: "PASTE_GID_VALIDATE_DATA_IVP"
-          GID_EXCLUDE: "PASTE_GID_TYPE_D"
+          GID_PROCESSING: 0
+          GID_PROBLEM: 1636819129
+          GID_EXCLUDE: 660228793
         run: |
           mkdir -p data
           curl -sL "https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID_PROCESSING}" -o data/processing.csv
