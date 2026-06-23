@@ -1,0 +1,66 @@
+name: Sync IVP data
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch sheets as CSV
+        env:
+          SHEET_ID: "1_cC0Pg3qqrzSjkCRPbiCACdy384wraBfJwf_PAEknuo"
+          GID_PROBLEM: "261670654"
+        run: |
+          mkdir -p data
+          BASE="https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid="
+
+          # ── Tambah bulan baru di sini saja ──────────────────────────────
+          # Format: LABEL|GID|FILENAME (satu baris per bulan)
+          MONTHS="
+          Januari|821275311|jan.csv
+          Februari|1413366043|feb.csv
+          Maret|396552767|mar.csv
+          April|433728558|apr.csv
+          Mei|1324478649|may.csv
+          Juni|1164824793|jun.csv
+          "
+          # ────────────────────────────────────────────────────────────────
+
+          # Fetch tiap bulan dan bangun months.json
+          echo "[" > data/months.json
+          FIRST=true
+          while IFS='|' read -r LABEL GID FILE; do
+            LABEL=$(echo "$LABEL" | tr -d ' ')
+            GID=$(echo "$GID" | tr -d ' ')
+            FILE=$(echo "$FILE" | tr -d ' ')
+            [ -z "$LABEL" ] && continue
+            curl -sL "${BASE}${GID}" -o "data/${FILE}"
+            echo "Fetched ${LABEL} (gid=${GID}) → data/${FILE} ($(wc -l < data/${FILE}) baris)"
+            [ "$FIRST" = true ] && FIRST=false || echo "," >> data/months.json
+            echo "  {\"label\":\"${LABEL}\",\"file\":\"${FILE}\"}" >> data/months.json
+          done <<< "$MONTHS"
+          echo "]" >> data/months.json
+
+          # IVP Bermasalah
+          curl -sL "${BASE}${GID_PROBLEM}" -o data/ivp_problem.csv
+          echo "Fetched IVP Problem ($(wc -l < data/ivp_problem.csv) baris)"
+
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > data/last_updated.txt
+          echo "--- months.json ---"
+          cat data/months.json
+
+      - name: Commit hasil fetch
+        run: |
+          git config user.name "ivp-dashboard-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "Sync data IVP $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
